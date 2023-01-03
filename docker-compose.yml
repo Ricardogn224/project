@@ -1,47 +1,113 @@
 version: "2.1"
 services:
-  ngnix-proxy-manager:
-    image: 'jc21/nginx-proxy-manager:latest'
+  overseerr:
+    image: lscr.io/linuxserver/overseerr:latest
+    container_name: overseerr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    volumes:
+      - ./volumes/overseerr/config:/config
+    ports:
+      - 5055:5055
+    restart: unless-stopped
+    networks:
+      - manager
+
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - ./volumes/radarr/config:/config
+      - ./volumes/radarr/movies:/movies 
+      - ./volumes/radarr/downloads:/downloads
+    ports:
+      - 7878:7878
+    restart: unless-stopped
+    networks:
+      - manager
+
+  plex:
+    image: linuxserver/plex:latest
+    container_name: plex
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - VERSION=docker
+
+    volumes:
+      - ${PLEX_CONFIG}:/config
+      - ./volumes/plex/tvseries:/tv
+      - ./volumes/plex/movies:/movies
+    ports:
+      - 32400:32400
+    restart: unless-stopped
+    networks:
+      - manager
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:develop
+    container_name: prowlarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - ${PROWLARR_CONFIG}:/config
+    ports:
+      - 9696:9696
+    restart: unless-stopped
+    networks:
+      - manager
+
+  sonarr:
+    image: linuxserver/sonarr
+    container_name: sonarr
     restart: unless-stopped
     ports:
-      - '80:80'
-      - '81:81'
-      - '443:443'
+    - 8989:8989
     volumes:
-      - ./data:/data
-      - ./letsencrypt:/etc/letsencrypt
+      - ${SONARR_CONFIG}:/config
+      - ./volumes/sonarr/movies:/movies
+      - ./volumes/sonarr/tv:/tv
+      - ./volumes/sonarr/downloads:/downloads
+    environment:
+    - PUID=1000
+    - PGID=1000
+    - TZ=America/New_York
     networks:
       - manager
 
-  authelia:
-    image: authelia/authelia
+  deluge:
+    image: lscr.io/linuxserver/deluge:latest
+    container_name: deluge
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - DELUGE_LOGLEVEL=error #optional
+      - PASSWORD=toto
     volumes:
-      - ${AUTHELIA_CONFIG}:/config
+      - ${DELUGE_CONFIG}:/config
+      - ./volumes/plex/movies:/downloads
     ports:
-      - 9090:9091
+      - 8112:8112
+      - 6881:6881
+      - 6881:6881/udp
+      
     restart: unless-stopped
-    healthcheck:
-      disable: true
-    environment:
-      - TZ=Asia/Kolkata
-    depends_on:
-      - redis
     networks:
       - manager
-
-  redis:
-    image: redis:alpine
-    volumes:
-      - ./redis:/data
-    expose:
-      - 6379
-    restart: unless-stopped
-    environment:
-      - TZ=Asia/Kolkata
-    networks:
-      - manager
-
 
 networks:
   manager:
     external: true
+      
+
+  
